@@ -1,4 +1,4 @@
-# TGN-CAW: using CAW edge embeddings for TGH memory updates
+# TGN-CAW: using CAW edge embeddings for TGN memory updates
 
 This is the first repo version - I will edit readme later. For now, I leave the TGN readme here.
 
