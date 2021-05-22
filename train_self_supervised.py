@@ -70,7 +70,7 @@ parser.add_argument('--caw_layers', type=int, default=2, help='number of steps i
 parser.add_argument('--caw_neighbors', nargs='*', default=['64', '2'],
                         help='a list of neighbor sampling numbers for different hops, when only a single element is input caw_layers will be activated')
 parser.add_argument('--caw_use_lstm', action='store_false', help='Whether to use LSTM on positional encodings(received from CAWs + MLP)')
-parser.add_argument('--use_caw', action='store_false', help='Whether to add CAW features to messages. False results in vanilla TGN')
+parser.add_argument('--use_caw', type=str, default='1', choices=['1', '0'], help='Whether to add CAW features to messages. 0(False) results in vanilla TGN')
 
 try:
   args = parser.parse_args()
@@ -93,7 +93,7 @@ TIME_DIM = args.time_dim
 USE_MEMORY = args.use_memory
 MESSAGE_DIM = args.message_dim
 MEMORY_DIM = args.memory_dim
-IGNORE_CAW = not args.use_caw
+IGNORE_CAW = not (args.use_caw=='1')
 
 
 
