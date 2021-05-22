@@ -1,22 +1,15 @@
-# TGN: Temporal Graph Networks [[arXiv](https://arxiv.org/abs/2006.10637), [YouTube](https://www.youtube.com/watch?v=W1GvX2ZcUmY), [Blog Post](https://towardsdatascience.com/temporal-graph-networks-ab8f327f2efe)] 
+# TGN-CAW: using CAW edge embeddings for TGH memory updates
 
-Dynamic Graph             |  TGN	
-:-------------------------:|:-------------------------:	
-![](figures/dynamic_graph.png)  |  ![](figures/tgn.png)	
-
+This is the first repo version - I will edit readme later. For now, I leave the TGN readme here.
 
 
 
 ## Introduction
 
-Despite the plethora of different models for deep learning on graphs, few approaches have been proposed thus far for dealing with graphs that present some sort of dynamic nature (e.g. evolving features or connectivity over time).
- 
-In this paper, we present Temporal Graph Networks (TGNs), a generic, efficient framework for deep learning on dynamic graphs represented as sequences of timed events. Thanks to a novel combination of memory modules and graph-based operators, TGNs are able to significantly outperform previous approaches being at the same time more computationally efficient. 
-
-We furthermore show that several previous models for learning on dynamic graphs can be cast as specific instances of our framework. We perform a detailed ablation study of different components of our framework and devise the best configuration that achieves state-of-the-art performance on several transductive and inductive prediction tasks for dynamic graphs.
+skip
 
 
-#### Paper link: [Temporal Graph Networks for Deep Learning on Dynamic Graphs](https://arxiv.org/abs/2006.10637)
+#### Paper link: [Temporal Graph Networks for Deep Learning on Dynamic Graphs](https://arxiv.org/abs/2006.10637) and [INDUCTIVE REPRESENTATION LEARNING IN TEMPORAL NETWORKS VIA CAUSAL ANONYMOUS WALKS](https://arxiv.org/pdf/2101.05974.pdf)
 
 
 ## Running the experiments
@@ -50,6 +43,14 @@ python utils/preprocess_data.py --data reddit --bipartite
 
 ### Model Training
 
+UPD: new CAW specific parameters here:
+--pos_dim: shape of MLP encoding for each CAW sequence member(dimension of the positional embedding)
+--pos_end: way to encode distances, shortest-path distance or landing probabilities, or self-based anonymous walk
+--caw_layers: number of steps in CAW walks(when only 1 value passed in caw_neighbors)
+--caw_neighbors: a list of neighbor sampling numbers for different hops, when only a single element is input caw_layers will be activated
+--caw_use_lstm: Whether to use LSTM on positional encodings(received from CAWs + MLP)
+--use_caw: Whether to add CAW features to messages. False results in vanilla TGN
+
 Self-supervised learning using the link prediction task:
 ```{bash}
 # TGN-attn: Supervised learning on the wikipedia dataset
@@ -71,65 +72,12 @@ python train_supervised.py -d reddit --use_memory --prefix tgn-attn-reddit --n_r
 
 ### Baselines
 
-```{bash}
-### Wikipedia Self-supervised
-
-# Jodie
-python train_self_supervised.py --use_memory --memory_updater rnn --embedding_module time --prefix jodie_rnn --n_runs 10
-
-# DyRep
-python train_self_supervised.py --use_memory --memory_updater rnn --dyrep --use_destination_embedding_in_message --prefix dyrep_rnn --n_runs 10
-
-
-### Reddit Self-supervised
-
-# Jodie
-python train_self_supervised.py -d reddit --use_memory --memory_updater rnn --embedding_module time --prefix jodie_rnn_reddit --n_runs 10
-
-# DyRep
-python train_self_supervised.py -d reddit --use_memory --memory_updater rnn --dyrep --use_destination_embedding_in_message --prefix dyrep_rnn_reddit --n_runs 10
-
-
-### Wikipedia Supervised
-
-# Jodie
-python train_supervised.py --use_memory --memory_updater rnn --embedding_module time --prefix jodie_rnn --n_runs 10
-
-# DyRep
-python train_supervised.py --use_memory --memory_updater rnn --dyrep --use_destination_embedding_in_message --prefix dyrep_rnn --n_runs 10
-
-
-### Reddit Supervised
-
-# Jodie
-python train_supervised.py -d reddit --use_memory --memory_updater rnn --embedding_module time --prefix jodie_rnn_reddit --n_runs 10
-
-# DyRep
-python train_supervised.py -d reddit --use_memory --memory_updater rnn  --dyrep --use_destination_embedding_in_message --prefix dyrep_rnn_reddit --n_runs 10
-```
+skip
 
 
 ### Ablation Study
-Commands to replicate all results in the ablation study over different modules:
-```{bash}
-# TGN-2l
-python train_self_supervised.py --use_memory --n_layer 2 --prefix tgn-2l --n_runs 10 
 
-# TGN-no-mem
-python train_self_supervised.py --prefix tgn-no-mem --n_runs 10 
-
-# TGN-time
-python train_self_supervised.py --use_memory --embedding_module time --prefix tgn-time --n_runs 10 
-
-# TGN-id
-python train_self_supervised.py --use_memory --embedding_module identity --prefix tgn-id --n_runs 10
-
-# TGN-sum
-python train_self_supervised.py --use_memory --embedding_module graph_sum --prefix tgn-sum --n_runs 10
-
-# TGN-mean
-python train_self_supervised.py --use_memory --aggregator mean --prefix tgn-mean --n_runs 10
-```
+skip
 
 
 #### General flags
@@ -163,25 +111,21 @@ optional arguments:
   --uniform                    Whether to sample the temporal neighbors uniformly (or instead take the most recent ones)
   --randomize_features         Whether to randomize node features
   --dyrep                      Whether to run the model as DyRep
+  --pos_dim                    shape of MLP encoding for each CAW sequence member(dimension of the positional embedding)
+  --pos_end                    way to encode distances, shortest-path distance or landing probabilities, or self-based anonymous walk
+  --caw_layers                 number of steps in CAW walks(when only 1 value passed in caw_neighbors)
+  --caw_neighbors              a list of neighbor sampling numbers for different hops, when only a single element is input caw_layers will be activated
+  --caw_use_lstm               Whether to use LSTM on positional encodings(received from CAWs + MLP)
+  --use_caw                    Whether to add CAW features to messages. False results in vanilla TGN
 ```
 
 ## TODOs 
-* Make code memory efficient: for the sake of simplicity, the memory module of the TGN model is 
-implemented as a parameter (so that it is stored and loaded together of the model). However, this 
-does not need to be the case, and 
-more efficient implementations which treat the models as just tensors (in the same way as the 
-input features) would be more amenable to large graphs.
+
+Finish the model!
 
 ## Cite us
 
-```bibtex
-@inproceedings{tgn_icml_grl2020,
-    title={Temporal Graph Networks for Deep Learning on Dynamic Graphs},
-    author={Emanuele Rossi and Ben Chamberlain and Fabrizio Frasca and Davide Eynard and Federico 
-    Monti and Michael Bronstein},
-    booktitle={ICML 2020 Workshop on Graph Representation Learning},
-    year={2020}
-}
+```skip
 ```
 
 
