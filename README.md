@@ -116,7 +116,7 @@ optional arguments:
   --caw_layers                 number of steps in CAW walks(when only 1 value passed in caw_neighbors)
   --caw_neighbors              a list of neighbor sampling numbers for different hops, when only a single element is input caw_layers will be activated
   --caw_use_lstm               Whether to use LSTM on positional encodings(received from CAWs + MLP)
-  --use_caw                    Whether to add CAW features to messages. False results in vanilla TGN
+  --use_caw                    Whether to add CAW features to messages. 0(False) results in vanilla TGN
 ```
 
 ## TODOs 
