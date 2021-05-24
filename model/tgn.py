@@ -27,7 +27,7 @@ class TGN(torch.nn.Module):
                use_source_embedding_in_message=False,
                dyrep=False,
                pos_dim=100, pos_enc='spd', caw_layers=2, caw_neighbors=[64, 2], caw_dropout=0.1, caw_use_lstm=True,
-               ignore_caw=False):
+               ignore_caw_message=False, ignore_caw_embed=False):
     super(TGN, self).__init__()
 
     self.n_layers = n_layers
@@ -49,8 +49,17 @@ class TGN(torch.nn.Module):
     self.dyrep = dyrep
 
     #TODO: CAW-specific parameters here
-    self.ignore_caw = ignore_caw
+    caw_neighbors[1] = caw_layers # TODO: this is a temporary workaround
+    self.ignore_caw_message = ignore_caw_message
+    self.ignore_caw_embed = ignore_caw_embed
+    self.ignore_caw = ignore_caw_embed and ignore_caw_message
+    self.caw_feat_dim = 0
     if not self.ignore_caw:
+        self.caw_use_lstm = caw_use_lstm
+        if self.caw_use_lstm:
+            self.caw_feat_dim = pos_dim
+        else:
+            self.caw_feat_dim = pos_dim * (caw_layers + 1)
         self.caw_ngh_finder = None
         self.pos_dim = pos_dim  # position feature dimension
         self.pos_enc = pos_enc
@@ -60,7 +69,6 @@ class TGN(torch.nn.Module):
                                                 logger=self.logger,
                                                 enc=self.pos_enc)
         self.caw_dropout = caw_dropout
-        self.caw_use_lstm = caw_use_lstm
         if caw_use_lstm:
             self.walk_lstm_encoder = FeatureEncoder(self.pos_dim, self.pos_dim, self.caw_dropout)
 
@@ -79,11 +87,9 @@ class TGN(torch.nn.Module):
       raw_message_dimension = 2 * self.memory_dimension + self.n_edge_features + \
                               self.time_encoder.dimension
       message_dimension = message_dimension if message_function != "identity" else raw_message_dimension
-      if not self.ignore_caw:
-          if self.caw_use_lstm:
-            message_dimension += self.pos_dim
-          else:
-            message_dimension += self.pos_dim * (self.caw_layers + 1)
+      if not self.ignore_caw_message:
+        message_dimension += self.caw_feat_dim
+
       self.memory = Memory(n_nodes=self.n_nodes,
                            memory_dimension=self.memory_dimension,
                            input_dimension=message_dimension,
@@ -116,7 +122,8 @@ class TGN(torch.nn.Module):
                                                  device=self.device,
                                                  n_heads=n_heads, dropout=dropout,
                                                  use_memory=use_memory,
-                                                 n_neighbors=self.n_neighbors)
+                                                 n_neighbors=self.n_neighbors,
+                                                 caw_feat_dim=self.caw_feat_dim)
 
     # MLP to compute probability on an edge given two node embeddings
     self.affinity_score = MergeLayer(self.n_node_features, self.n_node_features,
@@ -180,17 +187,17 @@ class TGN(torch.nn.Module):
       subgraph_src, subgraph_tgt = subgraphs
       self.position_encoder.init_internal_data(src_idx_l, tgt_idx_l, cut_time_l, subgraph_src, subgraph_tgt)
       subgraph_src = self.subgraph_tree2walk(src_idx_l, cut_time_l, subgraph_src)
-      #subgraph_tgt = self.subgraph_tree2walk(tgt_idx_l, cut_time_l, subgraph_tgt)
+      subgraph_tgt = self.subgraph_tree2walk(tgt_idx_l, cut_time_l, subgraph_tgt)
       node_records_src, eidx_records_src, t_records_src = subgraph_src
       position_features_src = self.caw_retrieve_position_features(src_idx_l, node_records_src, cut_time_l,
                                                                   t_records_src)
-      position_features_tgt = None
+      node_records_tgt, eidx_records_tgt, t_records_tgt = subgraph_tgt
+      position_features_tgt = self.caw_retrieve_position_features(tgt_idx_l, node_records_tgt, cut_time_l,
+                                                                  t_records_tgt)
       #TODO: adding Bi-LSTM encoding of each walk here
       if self.caw_use_lstm:
         position_features_src = self.walk_lstm_encoder(position_features_src)
-      #node_records_tgt, eidx_records_tgt, t_records_tgt = subgraph_tgt
-      #position_features_tgt = self.caw_retrieve_position_features(tgt_idx_l, node_records_tgt, cut_time_l,
-      #                                                            t_records_tgt)
+        position_features_tgt = self.walk_lstm_encoder(position_features_tgt)
       return [position_features_src, position_features_tgt]
 
   def compute_temporal_embeddings(self, source_nodes, destination_nodes, negative_nodes, edge_times,
@@ -216,8 +223,8 @@ class TGN(torch.nn.Module):
     memory = None
     time_diffs = None
 
-    # TODO: CAW position vectors computed here; pass them to the message function; also, dont forget to change message dimesions
-    if not self.ignore_caw:
+    # TODO: CAW position vectors computed here; pass them to the message function
+    if not self.ignore_caw_message:
         subgraphs = [self.grab_subgraph(source_nodes, edge_times, edge_idxs), self.grab_subgraph(destination_nodes, edge_times, edge_idxs)]
         caw_features = self.caw_compute_edge_embeddings(source_nodes, destination_nodes, edge_times, subgraphs)
     else:
@@ -248,12 +255,36 @@ class TGN(torch.nn.Module):
                              dim=0)
 
     # Compute the embeddings using the embedding module
-    node_embedding = self.embedding_module.compute_embedding(memory=memory,
+    if self.ignore_caw_embed:
+        node_embedding = self.embedding_module.compute_embedding(memory=memory,
+                                                                 source_nodes=nodes,
+                                                                 timestamps=timestamps,
+                                                                 n_layers=self.n_layers,
+                                                                 n_neighbors=n_neighbors,
+                                                                 time_diffs=time_diffs)
+    else:
+        # TODO: add CAW embedding use option
+        node_ngh_ids = self.embedding_module.get_ngh_ids(memory=memory,
+                                                                 source_nodes=nodes,
+                                                                 timestamps=timestamps,
+                                                                 n_layers=self.n_layers,
+                                                                 n_neighbors=n_neighbors,
+                                                                 time_diffs=time_diffs)
+        nodes_latent = np.repeat(nodes, n_neighbors)
+        times_latent = np.repeat(0, nodes.shape[0] * n_neighbors)
+        node_ngh_ids = node_ngh_ids.reshape(-1)
+        subgraphs = [self.grab_subgraph(nodes_latent, times_latent), self.grab_subgraph(node_ngh_ids, times_latent)]
+        caw_features = self.caw_compute_edge_embeddings(nodes_latent, node_ngh_ids, times_latent, subgraphs)
+        caw_features = caw_features[0] + caw_features[1]
+        caw_features = caw_features.reshape(nodes.shape[0], n_neighbors, -1)
+        caw_features = caw_features.reshape(nodes.shape[0], n_neighbors, -1, self.caw_neighbors[0]).mean(axis=3)
+        node_embedding = self.embedding_module.compute_embedding(memory=memory,
                                                              source_nodes=nodes,
                                                              timestamps=timestamps,
                                                              n_layers=self.n_layers,
                                                              n_neighbors=n_neighbors,
-                                                             time_diffs=time_diffs)
+                                                             time_diffs=time_diffs,
+                                                             caw_features=caw_features)
 
     source_node_embedding = node_embedding[:n_samples]
     destination_node_embedding = node_embedding[n_samples: 2 * n_samples]
@@ -367,7 +398,7 @@ class TGN(torch.nn.Module):
     source_time_delta_encoding = self.time_encoder(source_time_delta.unsqueeze(dim=1)).view(len(source_nodes), -1)
 
     # TODO: concatenating CAW positional embeddings here
-    if not self.ignore_caw:
+    if not self.ignore_caw_message:
         if self.caw_use_lstm:
             caw_features = caw_features[0].mean(axis=1)
         else:

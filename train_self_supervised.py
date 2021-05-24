@@ -70,7 +70,8 @@ parser.add_argument('--caw_layers', type=int, default=2, help='number of steps i
 parser.add_argument('--caw_neighbors', nargs='*', default=['64', '2'],
                         help='a list of neighbor sampling numbers for different hops, when only a single element is input caw_layers will be activated')
 parser.add_argument('--caw_use_lstm', action='store_false', help='Whether to use LSTM on positional encodings(received from CAWs + MLP)')
-parser.add_argument('--use_caw', type=str, default='1', choices=['1', '0'], help='Whether to add CAW features to messages. 0(False) results in vanilla TGN')
+parser.add_argument('--use_caw_message', type=str, default='1', choices=['1', '0'], help='Whether to add CAW features to messages. Set 0(False) for vanilla TGN')
+parser.add_argument('--use_caw_embed', type=str, default='1', choices=['1', '0'], help='Whether to add CAW features to embedding generation. Set 0(False) for vanilla TGN')
 
 try:
   args = parser.parse_args()
@@ -93,7 +94,9 @@ TIME_DIM = args.time_dim
 USE_MEMORY = args.use_memory
 MESSAGE_DIM = args.message_dim
 MEMORY_DIM = args.memory_dim
-IGNORE_CAW = not (args.use_caw=='1')
+IGNORE_CAW_MESSAGE = not (args.use_caw_message=='1')
+IGNORE_CAW_EMBED = not (args.use_caw_embed=='1')
+IGNORE_CAW = IGNORE_CAW_MESSAGE and IGNORE_CAW_EMBED
 
 
 
@@ -192,7 +195,7 @@ for i in range(args.n_runs):
             use_source_embedding_in_message=args.use_source_embedding_in_message,
             dyrep=args.dyrep,
             pos_dim=args.pos_dim, pos_enc=args.pos_enc, caw_layers=args.caw_layers, caw_neighbors=args.caw_neighbors, caw_use_lstm=args.caw_use_lstm,
-            ignore_caw=IGNORE_CAW)
+            ignore_caw_message=IGNORE_CAW_MESSAGE, ignore_caw_embed=IGNORE_CAW_EMBED)
 
   #TODO: if needed, load checkpoint here
   #tgn.load_state_dict(torch.load('saved_checkpoints/tgn-attn-uci-16.pth'))
