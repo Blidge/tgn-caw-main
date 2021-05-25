@@ -276,8 +276,9 @@ class TGN(torch.nn.Module):
         subgraphs = [self.grab_subgraph(nodes_latent, times_latent), self.grab_subgraph(node_ngh_ids, times_latent)]
         caw_features = self.caw_compute_edge_embeddings(nodes_latent, node_ngh_ids, times_latent, subgraphs)
         caw_features = caw_features[0] + caw_features[1]
-        caw_features = caw_features.reshape(nodes.shape[0], n_neighbors, -1)
-        caw_features = caw_features.reshape(nodes.shape[0], n_neighbors, -1, self.caw_neighbors[0]).mean(axis=3)
+        #caw_features = caw_features.reshape(nodes.shape[0], n_neighbors, -1, self.caw_neighbors[0] * 2).mean(axis=3)
+        caw_features = caw_features.reshape(nodes.shape[0], n_neighbors, self.caw_feat_dim, -1).mean(axis=3)
+        caw_features = caw_features.to(self.device)
         node_embedding = self.embedding_module.compute_embedding(memory=memory,
                                                              source_nodes=nodes,
                                                              timestamps=timestamps,

@@ -177,6 +177,7 @@ class GraphSumEmbedding(GraphEmbedding):
                                             device=device,
                                             n_heads=n_heads, dropout=dropout,
                                             use_memory=use_memory)
+
     self.linear_1 = torch.nn.ModuleList([torch.nn.Linear(embedding_dimension + n_time_features +
                                                          n_edge_features + caw_feat_dim * int(i==(n_layers-1)), embedding_dimension)
                                          for i in range(n_layers)])
@@ -189,6 +190,7 @@ class GraphSumEmbedding(GraphEmbedding):
                 edge_time_embeddings, edge_features, mask):
     neighbors_features = torch.cat([neighbor_embeddings, edge_time_embeddings, edge_features],
                                    dim=2)
+
     neighbor_embeddings = self.linear_1[n_layer - 1](neighbors_features)
     neighbors_sum = torch.nn.functional.relu(torch.sum(neighbor_embeddings, dim=1))
 
