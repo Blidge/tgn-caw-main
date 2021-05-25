@@ -70,7 +70,7 @@ parser.add_argument('--caw_layers', type=int, default=2, help='number of steps i
 parser.add_argument('--caw_neighbors', nargs='*', default=['64', '2'],
                         help='a list of neighbor sampling numbers for different hops, when only a single element is input caw_layers will be activated')
 parser.add_argument('--caw_use_lstm', action='store_false', help='Whether to use LSTM on positional encodings(received from CAWs + MLP)')
-parser.add_argument('--use_caw_message', type=str, default='0', choices=['1', '0'], help='Whether to add CAW features to messages. Set 0(False) for vanilla TGN')
+parser.add_argument('--use_caw_message', type=str, default='1', choices=['1', '0'], help='Whether to add CAW features to messages. Set 0(False) for vanilla TGN')
 parser.add_argument('--use_caw_embed', type=str, default='1', choices=['1', '0'], help='Whether to add CAW features to embedding generation. Set 0(False) for vanilla TGN')
 
 try:

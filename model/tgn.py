@@ -123,7 +123,7 @@ class TGN(torch.nn.Module):
                                                  n_heads=n_heads, dropout=dropout,
                                                  use_memory=use_memory,
                                                  n_neighbors=self.n_neighbors,
-                                                 caw_feat_dim=self.caw_feat_dim)
+                                                 caw_feat_dim=self.caw_feat_dim * int(not self.ignore_caw_embed))
 
     # MLP to compute probability on an edge given two node embeddings
     self.affinity_score = MergeLayer(self.n_node_features, self.n_node_features,
@@ -274,18 +274,18 @@ class TGN(torch.nn.Module):
         times_latent = np.repeat(0, nodes.shape[0] * n_neighbors)
         node_ngh_ids = node_ngh_ids.reshape(-1)
         subgraphs = [self.grab_subgraph(nodes_latent, times_latent), self.grab_subgraph(node_ngh_ids, times_latent)]
-        caw_features = self.caw_compute_edge_embeddings(nodes_latent, node_ngh_ids, times_latent, subgraphs)
-        caw_features = caw_features[0] + caw_features[1]
-        #caw_features = caw_features.reshape(nodes.shape[0], n_neighbors, -1, self.caw_neighbors[0] * 2).mean(axis=3)
-        caw_features = caw_features.reshape(nodes.shape[0], n_neighbors, self.caw_feat_dim, -1).mean(axis=3)
-        caw_features = caw_features.to(self.device)
+        caw_features_emb = self.caw_compute_edge_embeddings(nodes_latent, node_ngh_ids, times_latent, subgraphs)
+        caw_features_emb = caw_features_emb[0] + caw_features_emb[1]
+        #caw_features_emb = caw_features_emb.reshape(nodes.shape[0], n_neighbors, -1, self.caw_neighbors[0] * 2).mean(axis=3)
+        caw_features_emb = caw_features_emb.reshape(nodes.shape[0], n_neighbors, self.caw_feat_dim, -1).mean(axis=3)
+        caw_features_emb = caw_features_emb.to(self.device)
         node_embedding = self.embedding_module.compute_embedding(memory=memory,
                                                              source_nodes=nodes,
                                                              timestamps=timestamps,
                                                              n_layers=self.n_layers,
                                                              n_neighbors=n_neighbors,
                                                              time_diffs=time_diffs,
-                                                             caw_features=caw_features)
+                                                             caw_features=caw_features_emb)
 
     source_node_embedding = node_embedding[:n_samples]
     destination_node_embedding = node_embedding[n_samples: 2 * n_samples]
